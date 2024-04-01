@@ -1,7 +1,6 @@
 #ifndef GEMM_CPU_NAIVE_H
 #define GEMM_CPU_NAIVE_H
 
-// TODO: implement the scalar part 
 void sgemm_naive(int M, int N, int K, float alpha, const float *A,
                  const float *B, float beta, float *C) {
     
@@ -13,7 +12,7 @@ void sgemm_naive(int M, int N, int K, float alpha, const float *A,
                 tmp += A[y * M + i] * B[i * K + x]; 
             }
             
-            C[y * M + x] = tmp;
+            C[y * M + x] = alpha * tmp + beta * C[y * M + x];
         }
     }
 }

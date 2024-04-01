@@ -1,5 +1,5 @@
 CC        ?= clang
-CFLAGS    ?= -fPIC -std=c11
+CFLAGS    ?= -O2 -fPIC -std=c11 
 LIB_PATH  ?=
 LDFLAGS   ?= -lopenblas
 
@@ -24,10 +24,6 @@ ifdef OPENBLAS_PATH
 	LIB_PATH += -L$(OBLAS_PATH)
 endif
 
-ifdef FAST
-	CFLAGS += -O3
-endif
-
 default: build
 
 runner.o: $(SRC_DIR)/runner.c
@@ -39,7 +35,7 @@ build: runner.o
 	@$(CC) $(CFLAGS) $(OBJ_DIR)/$< $(LIB_PATH) -o $(BUILD_DIR)/$(BINARY) $(LDFLAGS)
 
 run: build
-	@$(BUILD_DIR)/$(BINARY)
+	@OMP_NUM_THREADS=1 $(BUILD_DIR)/$(BINARY)
 
 clean: 
 	rm -rf $(BUILD_DIR)
