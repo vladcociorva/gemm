@@ -29,7 +29,9 @@ Now the innermost loop computes partial results, hence we cannot perform accumul
 
 It seems that after this optimization, if compiling with `-march=native` the compiler uses AVX/FMA (`vmovups`, `vfmadd`, etc) instructions and registers (`ymm` - holds 8 single precision floats). 
 
-```x86asm
+> objdump -d build/obj/cpu/kernels/loop_reorder.o
+```assembly
+...
 vmovups -224(%r12,%r15,4), %ymm3
 vmovups -192(%r12,%r15,4), %ymm4         
 vmovups -160(%r12,%r15,4), %ymm5         
@@ -42,6 +44,7 @@ vmovups %ymm3, -224(%rdx,%r15,4)
 vmovups %ymm4, -192(%rdx,%r15,4)                                             
 vmovups %ymm5, -160(%rdx,%r15,4)                                             
 vmovups %ymm6, -128(%rdx,%r15,4)
+...
 ```
 
 ### Results [1024x1024 matrices] [Single thread] 
@@ -49,6 +52,9 @@ vmovups %ymm6, -128(%rdx,%r15,4)
 |------------------------------------|:------------:|:---------------------------:|
 | [1] Naive      	                   |`1.08`        |`1.0x`                       |
 | [2] Cache friendly loop reordering |`22.97`       |`21.2x`                      |
+| [3] 1-D Tiling | | |
+| [4] 2-D Tiling | | |
+| [5] FMA instructions | | |
 | [0] OpenBLAS   	                   |`102.23`      |`94.6x`                      |
 
 
