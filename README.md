@@ -27,7 +27,7 @@ When iterating over matrix B (going down the rows), the memory read always cache
 We can re-order the loops and swap the `K` loop with the `N` loop. `N` loop indexes into the columns of matrix `B` and we would benefit a lot, cache wise, if that would be done most frequently. 
 Now the innermost loop computes partial results, hence we cannot perform accumulation in a single register anymore.
 
-It seems that after this optimization, if compiling with `-march=native` the compiler uses AVX/FMA (`vmovups`, `vfmadd`, etc) instructions and registers (`ymm` - holds 8 single precision floats). 
+It seems that after this optimization, if compiling with `-march=native` the compiler uses AVX/FMA instructions (`vmovups`, `vfmadd`, etc) and registers (`ymm` - which can hold 8 single precision floats at a time). 
 
 > objdump -d build/obj/cpu/kernels/loop_reorder.o
 ```assembly
@@ -52,16 +52,12 @@ vmovups %ymm6, -128(%rdx,%r15,4)
 |------------------------------------|:------------:|:---------------------------:|
 | [1] Naive      	                   |`1.08`        |`1.0x`                       |
 | [2] Cache friendly loop reordering |`22.97`       |`21.2x`                      |
-| [3] 1-D Tiling | | |
-| [4] 2-D Tiling | | |
-| [5] FMA instructions | | |
 | [0] OpenBLAS   	                   |`102.23`      |`94.6x`                      |
 
 
 >Executed on an 2,2 GHz 6-Core Intel Core i7 MacBook Pro.
 > 
 >Compiled with `FAST=1` i.e. `-O2 -ffast-math -march=native -funroll-loops`. 
->
 
 ### How to replicate?
 #### 1. Prereqs
