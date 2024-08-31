@@ -1,5 +1,5 @@
 CC        ?= clang
-CFLAGS    ?= -O2 -fPIC -std=c17 -D_POSIX_C_SOURCE=199309L
+CFLAGS    ?= -fPIC -std=c17 -D_POSIX_C_SOURCE=199309L
 LIB_PATHS ?=
 LDFLAGS   ?= -lopenblas -lm
 
@@ -16,7 +16,7 @@ BINARY     = gemm
 MKDIR ?= @mkdir -p
 
 ifdef FAST 
-	CFLAGS += -ffast-math -march=native -funroll-loops
+	CFLAGS += -O2 -ffast-math -march=native -funroll-loops
 endif
 
 ifdef OPENBLAS_PATH

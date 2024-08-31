@@ -3,34 +3,41 @@ Step by step matrix multiplication optimization for educational purposes.
 
 ## CPU
 
+We want to multiply a matrix $\bm{A}$ of shape $m \times k$ with matrix $\bm{B}$ of shape $k \times n$ and get matrix $\bm{C}$ of shape $m \times n$.
+
 ### 1. Naive 
 Naive 3-loop iterative implementation.
 
-*Not the most naive*, as it does calculate the dot-product for an element `C[i, j]` in a variable (which likely is stored in a single register) and doesn't read memory at each `C[i, j]` update in the iterative summing.
+*Not the most naive*, as it does calculate the dot-product for an element $\bm{C}_{i,j}$ in a variable (which likely is stored in a single register) and doesn't read memory at each $\bm{C}_{i,j}$ update in the iterative summing. This makes it such that the CPU cache is not polluted with useles reads for $\bm{C}$ thus havig more space elements of $\bm{A}$ and $\bm{B}$ matrices.
 
 ### 2. Cache friendly loop reordering
 
 Data is transferred between memory and cache in blocks of fixed size, called cache lines or cache blocks. When a cache line is copied from memory into the cache, a cache entry is created. The cache entry will include the copied data as well as the requested memory location (called a tag).
 
-The usual size of a cache line is `64` bytes. `getconf -a | grep CACHE` to see exact numbers for cache sizes and cache line sizes. 
+The usual size of a cache line is `64` bytes, meaning it will read `16` contiguous fp32s at a time. `getconf -a | grep CACHE` to see exact numbers for cache sizes and cache line sizes. 
 
 On a high level, when the processor needs to read or write a location in memory, it first checks for a corresponding entry in the cache. The cache checks for the contents of the requested memory location in any cache lines that might contain that address. If the processor finds that the memory location is in the cache, a cache hit has occurred. However, if the processor does not find the memory location in the cache, a cache miss has occurred. In the case of a cache hit, the processor immediately reads or writes the data in the cache line. For a cache miss, the cache allocates a new entry and copies data from main memory, then the request is fulfilled from the contents of the cache.
 
-As rough estimations, an L1 cache reference takes ~1ns, whereas main memory reference takes ~100ns.
+As a rough estimation, an L1 cache reference takes ~1ns, whereas main memory reference takes ~100ns.
 
-When calculating the value of element `C[i, j]` we calculate the dot-product between `A[i, :]` (i-th row of A) and `B[:, j]` (j-th column of B).
+When calculating the value of element $\bm{C}_{i,j}$ we calculate the dot-product between $\bm{A}_{i,:}$ (i-th row of $\bm{A}$) and $\bm{B}_{:,j}$ (j-th column of $\bm{B}$).
 
-Given the strided representation of matrices in memory, and the fact that C is a row-major programming language, it means that the inner loop (to `K`) from the Naive implementation is very cache unfriendly.
-For matrix `A`, `K` represents columns (i.e. contiguous memory), but for matrix `B` it represents rows.
-When iterating over matrix B (going down the rows), the memory read always cache-misses (assuming B is large enough, i.e. roughly B's row stride > cache line).
+Given the strided representation of matrices in memory, and the fact that C is a row-major programming language, it means that the inner loop (to $k$) from the Naive implementation is very cache unfriendly.
+For matrix $\bm{A}$, $k$ represents columns (i.e. contiguous memory), but for matrix $\bm{B}$ it represents rows.
+When iterating over matrix $\bm{B}$ (going down the rows), the memory read always cache-misses (assuming $\bm{B}$ is large enough, i.e. roughly $\bm{B}$'s row stride > cache line).
 
-We can re-order the loops and swap the `K` loop with the `N` loop. `N` loop indexes into the columns of matrix `B` and we would benefit a lot, cache wise, if that would be done most frequently. 
+We can re-order the loops and swap the $k$ loop with the $n$ loop. $n$ loop indexes into the columns of matrix $\bm{B}$ and we would benefit a lot, cache wise, if that would be done most frequently. 
 Now the innermost loop computes partial results, hence we cannot perform accumulation in a single register anymore.
 
 
 ### Results [1024x1024 sq matrices] [Single threaded]
 
-Run on an `AMD Ryzen 7 9700X 8 Core CPU`.
+Run with 
+* CPU AMD Ryzen 7 9700X 8 Core @ 5.5GHz (during load)
+* RAM: 64GB DDR5 @ 4.8GHz
+* OS: Ubuntu 24.04
+* Compiler: clang 18.1.3
+* Compiler flags (i.e., `FAST=1 make build`): `-O2 -ffast-math -march=native -funroll-loops`
 
 | **Kernel** 	                     | **GFLOPs/s** | **Speed-up over naive**     |**Performance relative to OpenBLAS**|
 |------------------------------------|:------------:|:---------------------------:|:----------------------------------:|

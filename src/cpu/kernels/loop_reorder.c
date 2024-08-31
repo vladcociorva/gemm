@@ -1,19 +1,19 @@
-void sgemm_loop_reorder(int M, int N, int K, float alpha, const float *A,
+void sgemm_loop_reorder(int m, int n, int k, float alpha, const float *A,
                         const float *B, float beta, float *C) {
 
   if (beta != 1.0) {
-    for (int y = 0; y < M; y++) {
-      for (int x = 0; x < N; x++) {
-        C[y * M + x] *= beta;
+    for (int y = 0; y < m; y++) {
+      for (int x = 0; x < n; x++) {
+        C[y * m + x] *= beta;
       }
     }
   }
 
-  for (int y = 0; y < M; y++) {
-    for (int i = 0; i < K; i++) {
-      float scaledA = alpha * A[y * M + i];
-      for (int x = 0; x < N; x++) {
-        C[y * M + x] += scaledA * B[i * K + x];
+  for (int y = 0; y < m; y++) {
+    for (int i = 0; i < k; i++) {
+      float scaledA = alpha * A[y * m + i];
+      for (int x = 0; x < n; x++) {
+        C[y * m + x] += scaledA * B[i * k + x];
       }
     }
   }

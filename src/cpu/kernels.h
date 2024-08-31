@@ -11,14 +11,14 @@ enum CpuKernels {
     CPU_END = CPU_LOOP_REORDER
 };
 
-void sgemm_naive(int M, int N, int K, float alpha, const float *A,
+void sgemm_openblas(int m, int n, int k, float alpha, const float *A,
+                    const float *B, float beta, float *C);
+
+void sgemm_naive(int m, int n, int k, float alpha, const float *A,
                  const float *B, float beta, float *C);
 
-void sgemm_loop_reorder(int M, int N, int K, float alpha, const float *A,
+void sgemm_loop_reorder(int m, int n, int k, float alpha, const float *A,
                         const float *B, float beta, float *C);
-
-void sgemm_openblas(int M, int N, int K, float alpha, const float *A,
-                    const float *B, float beta, float *C);
 
 sgemm_kernel cpu_kernels[] = {sgemm_openblas, sgemm_naive, sgemm_loop_reorder};
 
