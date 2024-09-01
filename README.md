@@ -8,7 +8,7 @@ We want to multiply a matrix $\boldsymbol{A}$ of shape $m \times k$ with matrix 
 ### 1. Naive 
 Naive 3-loop iterative implementation.
 
-*Not the most naive*, as it does calculate the dot-product for an element $\boldsymbol{C}_{i,j}$ in a variable (which likely is stored in a single register) and doesn't read memory at each $\boldsymbol{C}_{i,j}$ update in the iterative summing. This makes it such that the CPU cache is not polluted with useles reads for $\boldsymbol{C}$ thus havig more space elements of $\boldsymbol{A}$ and $\boldsymbol{B}$ matrices.
+*Not the most naive*, as it does calculate the dot-product for an element $\boldsymbol{C}_ {i,j}$ in a variable (which likely is stored in a single register) and doesn't read memory at each $\boldsymbol{C}_ {i,j}$ update in the iterative summing. This makes it such that the CPU cache is not polluted with useles reads for $\boldsymbol{C}$ thus havig more space elements of $\boldsymbol{A}$ and $\boldsymbol{B}$ matrices.
 
 ### 2. Cache friendly loop reordering
 
@@ -20,7 +20,7 @@ On a high level, when the processor needs to read or write a location in memory,
 
 As a rough estimation of order of magnitude, an L1 cache reference takes ~1ns, whereas main memory reference takes ~100ns.
 
-When calculating the value of element $\boldsymbol{C}_{i,j}$ we calculate the dot-product between $\boldsymbol{A}_{i,:}$ (i-th row of $\boldsymbol{A}$) and $\boldsymbol{B}_{:,j}$ (j-th column of $\boldsymbol{B}$).
+When calculating the value of element $\boldsymbol{C}_ {i,j}$ we calculate the dot-product between $\boldsymbol{A}_ {i,:}$ (i-th row of $\boldsymbol{A}$) and $\boldsymbol{B}_ {:,j}$ (j-th column of $\boldsymbol{B}$).
 
 Given the strided representation of matrices in memory, and the fact that C is a row-major programming language, it means that the inner loop (to $k$) from the Naive implementation is very cache unfriendly.
 For matrix $\boldsymbol{A}$, $k$ represents columns (i.e. contiguous memory), but for matrix $\boldsymbol{B}$ it represents rows.
