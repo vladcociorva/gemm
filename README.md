@@ -3,12 +3,12 @@ Step by step matrix multiplication optimization for educational purposes.
 
 ## CPU
 
-We want to multiply a matrix $\bm{A}$ of shape $m \times k$ with matrix $\bm{B}$ of shape $k \times n$ and get matrix $\bm{C}$ of shape $m \times n$.
+We want to multiply a matrix $\boldsymbol{A}$ of shape $m \times k$ with matrix $\boldsymbol{B}$ of shape $k \times n$ and get matrix $\boldsymbol{C}$ of shape $m \times n$.
 
 ### 1. Naive 
 Naive 3-loop iterative implementation.
 
-*Not the most naive*, as it does calculate the dot-product for an element $\bm{C}_{i,j}$ in a variable (which likely is stored in a single register) and doesn't read memory at each $\bm{C}_{i,j}$ update in the iterative summing. This makes it such that the CPU cache is not polluted with useles reads for $\bm{C}$ thus havig more space elements of $\bm{A}$ and $\bm{B}$ matrices.
+*Not the most naive*, as it does calculate the dot-product for an element $\boldsymbol{C}_{i,j}$ in a variable (which likely is stored in a single register) and doesn't read memory at each $\boldsymbol{C}_{i,j}$ update in the iterative summing. This makes it such that the CPU cache is not polluted with useles reads for $\boldsymbol{C}$ thus havig more space elements of $\boldsymbol{A}$ and $\boldsymbol{B}$ matrices.
 
 ### 2. Cache friendly loop reordering
 
@@ -20,13 +20,13 @@ On a high level, when the processor needs to read or write a location in memory,
 
 As a rough estimation of order of magnitude, an L1 cache reference takes ~1ns, whereas main memory reference takes ~100ns.
 
-When calculating the value of element $\bm{C}_{i,j}$ we calculate the dot-product between $\bm{A}_{i,:}$ (i-th row of $\bm{A}$) and $\bm{B}_{:,j}$ (j-th column of $\bm{B}$).
+When calculating the value of element $\boldsymbol{C}_{i,j}$ we calculate the dot-product between $\boldsymbol{A}_{i,:}$ (i-th row of $\boldsymbol{A}$) and $\boldsymbol{B}_{:,j}$ (j-th column of $\boldsymbol{B}$).
 
 Given the strided representation of matrices in memory, and the fact that C is a row-major programming language, it means that the inner loop (to $k$) from the Naive implementation is very cache unfriendly.
-For matrix $\bm{A}$, $k$ represents columns (i.e. contiguous memory), but for matrix $\bm{B}$ it represents rows.
-When iterating over matrix $\bm{B}$ (going down the rows), the memory read always cache-misses (assuming $\bm{B}$ is large enough, i.e. roughly $\bm{B}$'s row stride > cache line).
+For matrix $\boldsymbol{A}$, $k$ represents columns (i.e. contiguous memory), but for matrix $\boldsymbol{B}$ it represents rows.
+When iterating over matrix $\boldsymbol{B}$ (going down the rows), the memory read always cache-misses (assuming $\boldsymbol{B}$ is large enough, i.e. roughly $\boldsymbol{B}$'s row stride > cache line).
 
-We can re-order the loops and swap the $k$ loop with the $n$ loop. $n$ loop indexes into the columns of matrix $\bm{B}$ and we would benefit a lot, cache wise, if that would be done most frequently. 
+We can re-order the loops and swap the $k$ loop with the $n$ loop. $n$ loop indexes into the columns of matrix $\boldsymbol{B}$ and we would benefit a lot, cache wise, if that would be done most frequently. 
 Now the innermost loop computes partial results, hence we cannot perform accumulation in a single register anymore.
 
 #### O2 vs O3
