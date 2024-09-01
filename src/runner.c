@@ -11,37 +11,37 @@
 #define N 1024
 #define K 1024
 
-#define SAMPLE_SIZE 10
+#define SAMPLE_SIZE 50
 
 static void run_cpu(int kernel_id) {
   srand(420);
 
-  double total_gflopss = 0.;
+  double total_gflops = 0.;
   for (int i = 0; i < SAMPLE_SIZE; i++) {
     float *A = randn(M * K);
     float *B = randn(K * N);
     float *C = zeros(M * N);
 
     uint64_t start = nanos();
-    cpu_kernels[kernel_id](M, N, K, 1.5, A, B, 0.0, C);
+    cpu_kernels[kernel_id](M, N, K, 1.0, A, B, 0.0, C);
     uint64_t end = nanos();
 
     /* 
-      alpha*A@B + beta*C FLOPS = M*N (alpha mul) + M*N*2*K (matmul) + M*N (beta mul) + M*N (addition)
+      alpha*A@B + beta*C FLOPs = M*N (alpha mul) + M*N*2*K (matmul) + M*N (beta mul) + M*N (addition)
     */
     double flops =  M*N*2.0*K + 3.0*M*N;
-    double gflops = flops * 1e-9;
+    double gflop = flops * 1e-9;
     double seconds = (end - start) * 1e-9;
-    double gflopss = gflops / seconds;
-    printf("%d: GFLOPs/S %.2f\n", i, gflopss);
-    total_gflopss += gflopss;
+    double gflops = gflop / seconds;
+    printf("%3d: GFLOP/s %.2f\n", i, gflops);
+    total_gflops += gflops;
 
     float *expected = zeros(M * N);
-    cpu_kernels[CPU_OPENBLAS](M, N, K, 1.5, A, B, 0.0, expected);
+    cpu_kernels[CPU_OPENBLAS](M, N, K, 1.0, A, B, 0.0, expected);
     check_correct(expected, C, M * N);
   }
 
-  printf("---\nMean GFLOPs/S %.2f\n", total_gflopss / SAMPLE_SIZE);
+  printf("---\nMean GFLOP/s %.2f\n", total_gflops / SAMPLE_SIZE);
 }
 
 static void print_usage() {

@@ -16,7 +16,7 @@ BINARY     = gemm
 MKDIR ?= @mkdir -p
 
 ifdef FAST 
-	CFLAGS += -O2 -ffast-math -march=native -funroll-loops
+	CFLAGS += -O3 -march=native
 endif
 
 ifdef OPENBLAS_PATH
