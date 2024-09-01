@@ -92,29 +92,9 @@ Experiment:
 |------------------------------------|:------------:|:---------------------------:|:----------------------------------:|
 | [1] Naive      	                 |`0.74`        |`1.0x`                       |`0.3%`                              |
 | [2] Cache friendly loop reordering |`57.82`       |`78.1x`                      |`34.5%`                             |
-| [0] OpenBLAS **  	                 |`167.48`      |`226.3x`                     |`100%`                              |
+| [0] OpenBLAS*  	                 |`167.48`      |`226.3x`                     |`100%`                              |
 
-
-* [**\***] It seems that after this optimization, if compiling with `-march=native`, on an old Intel Macbook, the compiler automatically uses AVX/FMA instructions (`vmovups`, `vfmadd`, etc) and registers (`ymm` - which can hold 8 single precision floats at a time). This resulted in about `22.97` GFLOPs/s. Not entirely sure why it doesn't do it on my desktop CPU.
-    ```
-    > objdump -d build/obj/cpu/kernels/loop_reorder.o
-    ...
-    vmovups -224(%r12,%r15,4), %ymm3
-    vmovups -192(%r12,%r15,4), %ymm4         
-    vmovups -160(%r12,%r15,4), %ymm5         
-    vmovups -128(%r12,%r15,4), %ymm6
-    vfmadd213ps     -224(%rdx,%r15,4), %ymm2, %ymm3 ## ymm3 = (ymm2 * ymm3) + mem
-    vfmadd213ps     -192(%rdx,%r15,4), %ymm2, %ymm4 ## ymm4 = (ymm2 * ymm4) + mem
-    vfmadd213ps     -160(%rdx,%r15,4), %ymm2, %ymm5 ## ymm5 = (ymm2 * ymm5) + mem
-    vfmadd213ps     -128(%rdx,%r15,4), %ymm2, %ymm6 ## ymm6 = (ymm2 * ymm6) + mem
-    vmovups %ymm3, -224(%rdx,%r15,4)                                             
-    vmovups %ymm4, -192(%rdx,%r15,4)                                             
-    vmovups %ymm5, -160(%rdx,%r15,4)                                             
-    vmovups %ymm6, -128(%rdx,%r15,4)
-    ...
-    ```
-
-* [**\*\***] Manually limited to one thread by running with `OMP_NUM_THREADS=1`. It's a lot faster (~10x), if we let it utilize all the cores.
+* [**\***] Manually limited to one thread by running with `OMP_NUM_THREADS=1`. It's a lot faster (~10x), if we let it utilize all the cores.
 
 ### How to replicate?
 #### 1. Prereqs
