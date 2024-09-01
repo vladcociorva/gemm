@@ -92,9 +92,9 @@ We can divide $\boldsymbol{A}$ into $q$ tiles across the columns (i.e., each til
 
 Each tile multiplication iteration will partially update the full $\boldsymbol{C}$ matrix.
 Formally, the full $\boldsymbol{C}$ matrix is computed as follows:
-$$
+```math
 \boldsymbol{C} = \sum_ {i=1}^{q} \boldsymbol{A}_ {i} \boldsymbol{B}_ {i}
-$$
+```
 
 For small size matrices (e.g. 1024x1024), the performance is quite similar (although the tiling version is consistently better) to the `O3` optimized loop reordering version. 
 
