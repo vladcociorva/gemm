@@ -34,9 +34,9 @@ We see a big performance increase either way, as the loops are now a bit more fr
 
 Interestingly though, on my machine, there is a **HUGE** difference between compiling with `-O2` and `-O3`. The compiler produces very different asm code.
 
-Performance wise, with `O2`, I get an average of `9.54` GFLOP/s from 50 runs, which is **12.8** times faster than the naive version.
-
-With `O3` however, I get an average of `57.82` GFLOP/s!!. This is **78.1** times faster than the naive version and **6** times faster than the same actual code, but compiled with `-O2`.
+Performance wise for 1024x1024 matrices:
+* with `O2`,  I get an average of `9.54` GFLOP/s from 50 runs, which is **12.8** times faster than the naive version.
+* with `O3` however, I get an average of `75.22` GFLOP/s!!. This is **101.6** times faster than the naive version and **7.8** times faster than the same actual code, but compiled with `-O2`.
 
 ##### Deep dive into the generated assembly code
 
@@ -61,7 +61,7 @@ Uses just the scalar AVX ops (i.e., `vmulss`, `vaddss`, `vmovss`), which only wo
 Also, the `O2` variant doesn't unroll the loops automatically, this can be forced with `-funroll-loops` though. 
 Adding `-funroll-loops` to the `O2` variant seems to net us a consistent extra `0.7` GFLOP/s. From ~`9.5` to about `10.2`.
 
-The assembly code generated with `O3` is far more complicated. It looks to have unrolled everything with the idea of taking advantage of SIMD. Interestingly enough, it still doesn't use FMA instructions.
+The assembly code generated with `O3` is far more complicated. It looks to have unrolled everything with the idea of improving cache coherency and also taking advantage of SIMD instructions. Interestingly enough, it still doesn't use FMA instructions.
 
 One core part to note is that it seems to do to packed muls (`vmulps`) and adds (`vaddps`) on `zmm` registers. (i.e., does calculations on 16 FP32s pairs in parallel).
 ```
@@ -74,6 +74,54 @@ One core part to note is that it seems to do to packed muls (`vmulps`) and adds 
 3bd:   75 e1                   jne    3a0 <sgemm_loop_reorder+0x3a0>
 ```
 
+### 1-D Tiling
+Another optimization technique we can try, that might help with cache locality is called tiling (or blocking). 
+
+The idea behind tiling is to divide the matrices into smaller sub-matrices, called tiles, that are more likely to fit into the CPU caches offering better cache coherency for the dot products.
+
+Instead of iterating over the entire rows and columns of $\boldsymbol{A}$ and $\boldsymbol{B}$, 
+we perform multiplication on corresponding tiles.
+
+As a starting point we will tile only on one dimension -- across the columns of $\boldsymbol{A}$ and across the rows of $\boldsymbol{B}$.
+
+Formally, let's assume arbitrary tile size $t$. We can split $k$ into $q=\frac{k}{t}$ tiles.
+
+We can divide $\boldsymbol{A}$ into $q$ tiles across the columns (i.e., each tile $\boldsymbol{A}_ {i}$ will have shape $m \times t$). Analoguous, we can divide $\boldsymbol{B}$ into $q$ blocks across the rows (i.e., each tile $\boldsymbol{B}_ {i}$ will have shape $t \times n$).
+
+![](docs/1d-tiling.svg)
+
+Each tile multiplication iteration will partially update the full $\boldsymbol{C}$ matrix.
+Formally, the full $\boldsymbol{C}$ matrix is computed as follows:
+$$
+\boldsymbol{C} = \sum_ {i=1}^{q} \boldsymbol{A}_ {i} \boldsymbol{B}_ {i}
+$$
+
+For small size matrices (e.g. 1024x1024), the performance is quite similar (although the tiling version is consistently better) to the `O3` optimized loop reordering version. 
+
+However, for bigger size matrices (2048/4096) they diverge. The 1D tiling version seems to be better by wider margins.
+
+The performance of the loop reordering version, seems to drop off a lot for bigger dimensions.
+My assumption is that for the loop reordering version, the compiler makes some assumptions about the dimensionality of the input and optimizes for cache coherency, based on those assumptions.
+The tiling version seems to be better for the general case (i.e. arbitrary sized matrices).
+
+I empirically found the best performing tile size to be `64` on my system. Although, more educated guesses could be made based on the caches specifications. My caches specifications:
+
+> getconf -a | grep CACHE
+```
+LEVEL1_ICACHE_SIZE                 32768
+LEVEL1_ICACHE_ASSOC                
+LEVEL1_ICACHE_LINESIZE             64
+LEVEL1_DCACHE_SIZE                 49152
+LEVEL1_DCACHE_ASSOC                12
+LEVEL1_DCACHE_LINESIZE             64
+LEVEL2_CACHE_SIZE                  1048576
+LEVEL2_CACHE_ASSOC                 16
+LEVEL2_CACHE_LINESIZE              64
+LEVEL3_CACHE_SIZE                  33554432
+LEVEL3_CACHE_ASSOC                 16
+LEVEL3_CACHE_LINESIZE              64
+```
+
 ### Results
 
 Hardware:
@@ -84,17 +132,38 @@ Hardware:
 * **Compiler flags** (i.e., `FAST=1 make build`): `-O3 -march=native`
 
 Experiment:
-* 1024x1024 normally distributed square matrices
 * 50 runs each. Used the mean GFLOPs/s
 * Single thread only
+* `OpenBLAS` was manually limited to one thread by running with `OMP_NUM_THREADS=1`. It's a lot faster (~10x), if we let it utilize all the cores.
 
-| **Kernel** 	                     | **GFLOP/s** | **Speed-up over naive**     |**Performance relative to OpenBLAS**|
-|------------------------------------|:------------:|:---------------------------:|:----------------------------------:|
-| [1] Naive      	                 |`0.74`        |`1.0x`                       |`0.3%`                              |
-| [2] Cache friendly loop reordering |`57.82`       |`78.1x`                      |`34.5%`                             |
-| [0] OpenBLAS*  	                 |`167.48`      |`226.3x`                     |`100%`                              |
+#### 1024x1024 matrices
 
-* [**\***] Manually limited to one thread by running with `OMP_NUM_THREADS=1`. It's a lot faster (~10x), if we let it utilize all the cores.
+| **Kernel** 	                     | **GFLOP/s**  | **Speed-up over naive**     |**Performance relative to OpenBLAS** |
+|------------------------------------|:------------:|:---------------------------:|:-----------------------------------:|
+| [1] Naive      	                 |`0.74`        |`1.0x`                       |`0.4%`                               |
+| [2] Cache friendly loop reordering |`75.22`       |`101.6x`                     |`44.9%`                              |
+| [3] 1-D Tiling (t=64)              |`77.99`       |`105.3`                      |`46.5%`                              | 
+| [0] OpenBLAS  	                 |`167.48`      |`226.3x`                     |`100%`                               |
+
+#### 2048x2048 matrices
+
+| **Kernel** 	                     | **GFLOP/s**  | **Speed-up over naive**     |**Performance relative to OpenBLAS** |
+|------------------------------------|:------------:|:---------------------------:|:-----------------------------------:|
+| [1] Naive      	                 |`0.47`        |`1.0x`                       |`0.3%`                               |
+| [2] Cache friendly loop reordering |`65.04`       |`138.3x`                     |`38.7%`                              |
+| [3] 1-D Tiling (t=64)              |`77.76`       |`165.4x`                     |`46.3%`                              | 
+| [0] OpenBLAS  	                 |`167.69`      |`226.3x`                     |`100%`                               |
+
+#### 4096x4096 matrices
+
+> Not including the Naive version, as it's not providing any value for these dimensions (and it takes long to run).
+
+| **Kernel** 	                     | **GFLOP/s**  |**Performance relative to OpenBLAS** |
+|------------------------------------|:------------:|:-----------------------------------:|
+| [2] Cache friendly loop reordering |`26.73`       |`16.1%`                              |
+| [3] 1-D Tiling (t=64)              |`64.98`       |`39.3%`                              | 
+| [0] OpenBLAS  	                 |`165.06`      |`100%`                               |
+
 
 ### How to replicate?
 #### 1. Prereqs
@@ -121,8 +190,10 @@ OPENBLAS_PATH=<path> make build
 ```
 
 #### 3. Run
+Creates matrices with random values (normally distributed with mean 0 and variance 1) of dimensions `m x k` and `k x n`. Uses kernel with id `i` to multiply them. Calculates the mean
+GFLOP/s of all the runs.
 ```
-./build/gemm <kernel-id>
+./build/gemm -i <kernel-id> -m <m value> -n <n value> -k <k value>
 ```
 
 ## References

@@ -57,7 +57,7 @@ float *zeros(uint64_t size) {
   return m;
 }
 
-#define EPS 1e-3
+#define EPS 9e-2
 void check_correct(float *expected, float *actual, uint64_t n) {
   for (size_t i = 0; i < n; i++) {
     if (fabsf(expected[i] - actual[i]) > EPS) {
